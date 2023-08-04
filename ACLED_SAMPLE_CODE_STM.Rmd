@@ -1,6 +1,8 @@
 ---
 title: "Acled Technical Assignment - Human Rights Analysis"
-output: html_notebook
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 ### Load Libraries 
 
@@ -88,7 +90,7 @@ dfm_stm <- convert(dfm, to = "stm")
 
 To run a Structured Topic Model, I begin by running a search K function which enables me to test the optimal number of topics that can be generated from this text. These Ks are usually analyzed using evaluation metrics for goodness of fit like Coherence, Residuals, Lower Bound and Exclusivity. K = 7 seems to be an optimal fit for the model from an initial look at the evaluation metrics however, this is also something I would usually discuss with stakeholders or fellow technical members of the team. After running the model for K = 7, I plot the proportion of topical prevalence in the texts and the top 7 words that exist in each topic. Lastly, I also create a gamma matrix which gives me the probability of each document being associated with a topic. 
 
-```{r}
+```{r results = 'hide'}
 #Select the number of K to search optimal number of topics
 K = c(5,6,7,8,9,10)
 
@@ -121,7 +123,7 @@ print(fit_stats)
 ```
 
 
-```{r}
+```{r results= 'hide'}
 # Run the model with K = best fit scores
 model <- stm(documents = dfm_stm$documents,
          vocab = dfm_stm$vocab, 
@@ -156,7 +158,7 @@ print(topwords[1:7])
 ```{r}
 #probability of each document being associated with each topic (Sample head(10))
 theta <- make.dt(model)
-theta[1:50,1:8]
+theta[1:10,1:8]
 ```
 
 
