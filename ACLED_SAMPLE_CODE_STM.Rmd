@@ -1,0 +1,247 @@
+---
+title: "Acled Technical Assignment - Human Rights Analysis"
+output: html_notebook
+---
+
+```{r}
+library(knitr)
+library(tm)
+library(ggplot2)
+library(tidyverse)
+library(quanteda)
+library(readtext)
+library(stm)
+library(tidytext)
+library(ggthemes)
+library(quanteda.textplots)
+```
+
+#Read Data 
+```{r}
+text <- readtext("dataverse_files_acled/dataverse/*.txt")
+```
+
+#Sampling 
+```{r}
+articles <- text %>% 
+  sample_n(1000)
+```
+
+#PreProcessing 
+```{r}
+#select text column from articles
+tokens <- articles$text %>% 
+  #tokenize to words
+          tokens(what = "word",
+                 #remove punctuation
+                 remove_punct = TRUE,
+                 #remove numbers
+                 remove_numbers = TRUE, 
+                 #remove urls
+                 remove_url = TRUE
+                 ) %>% 
+  #change all tokens to lowercase
+  tokens_tolower() %>% 
+  #remove common stop words from the english language
+  tokens_remove(stopwords("english")) %>% 
+  #stem using quanteda's language stemmer
+  #lemmetization potential here#
+  tokens_wordstem(language = quanteda_options("language_stemmer")) %>% 
+  #compound token to keep the word "human right" together
+  #add un here 
+  tokens_compound(pattern = c("human right*", "u.s.*", "domestic violence*", "un*"))
+
+#applying relative pruning, create document feature matrix where the minimum term frequency is set to 30, i.e include those words that occur 30 or more times in the dfm.
+dfm <- dfm_trim(dfm(tokens), min_docfreq = 0.30, max_docfreq = 0.90, min_termfreq = 75, docfreq_type = "prop", verbose = TRUE)
+
+#remove additional characters
+dfm <- dfm_remove(dfm,c("<",">", "however", "although", "$"))
+```
+
+```{r}
+textplot_wordcloud(dfm, max_words = 50, random_order = TRUE, color = "#0086b3")
+```
+
+```{r}
+#convert dfm into a stm structure that is compatible with analysis in library(stm)
+dfm_stm <- convert(dfm, to = "stm")
+```
+
+#Modelling 
+
+```{r}
+#Select the number of K to search optimal number of topics
+K = c(5,6,7,8,9,10)
+
+#Run Search K model to check goodness of fit for each K
+model_test <- searchK(dfm_stm$documents, dfm_stm$vocab, K = K, verbose = TRUE)
+```
+
+
+```{r}
+# Plot Eval Metrics for checking model fit
+plot <- data.frame("K" = K, 
+                   "Coherence" = unlist(model_test$results$semcoh),
+                   "Exclusivity" = unlist(model_test$results$exclus),
+                   "Residual" =  unlist(model_test$results$residual),
+                   "Lower Bound" = unlist(model_test$results$lbound))
+
+# Reshape to long format
+library("reshape2")
+plot <- melt(plot, id=c("K"))
+plot
+
+library("ggplot2")
+fit_stats <- ggplot(plot, aes(K, value, color = variable)) +
+  geom_line(size = 1.5, show.legend = FALSE) +
+  facet_wrap(~variable,scales = "free_y") +
+  labs(x = "Number of topics K",
+       title = "Statistical fit of models with different K")+
+  theme_fivethirtyeight()
+print(fit_stats)
+```
+
+
+```{r}
+# Run the model with K = best fit scores
+model <- stm(documents = dfm_stm$documents,
+         vocab = dfm_stm$vocab, 
+         K = 7,
+         verbose = TRUE)
+```
+
+
+```{r}
+#plot the topics and the top 7 words from the topic 
+plot.STM(model, "summary", n=7)
+```
+
+
+```{r}
+# For each topic, print the first seven common words, use FREX score to evaluate model
+print(labelTopics(model,topics = c(1:7), n=7))
+```
+
+```{r}
+#Save top 20 features across topics and forms of weighting
+labels <- labelTopics(model, n=30)
+#only keep FREX weighting
+topwords <- data.frame("features" = t(labels$frex))
+#assign topic number as column name
+colnames(topwords) <- paste("Topics", c(1:7))
+#Return the result
+print(topwords[1:7])
+```
+
+
+```{r}
+#probability of each document being asssociated with each topic (Sample head(10))
+theta <- make.dt(model)
+theta[1:10,1:8]
+```
+
+
+
+### Visualization and Insights
+
+```{r}
+#convert model into tidy tibble
+model_beta <- tidy(model)
+head(model_beta)
+```
+
+```{r}
+#covert model into tibble gamma matrix -- probability of each document being assoicated with a topic
+model_gamma <- tidy(model, matrix = "gamma",
+                 document_names = rownames(articles))
+model_gamma
+```
+
+```{r}
+top_terms <- model_beta%>%
+  arrange(beta) %>%
+  group_by(topic) %>%
+  top_n(7, beta) %>%
+  arrange(-beta) %>%
+  select(topic, term) %>%
+  summarise(terms = list(term)) %>%
+  mutate(terms = map(terms, paste, collapse = ", ")) %>% 
+  unnest(cols = c(terms))
+
+gamma_terms <- model_gamma %>%
+  group_by(topic) %>%
+  summarise(gamma = mean(gamma)) %>%
+  arrange(desc(gamma)) %>%
+  left_join(top_terms, by = "topic") %>%
+  mutate(topic = paste0("Topic ", topic),
+         topic = reorder(topic, gamma))
+
+gamma_terms %>%
+  top_n(8, gamma) %>%
+  ggplot(aes(topic, gamma, label = terms, fill = topic)) +
+  geom_col(show.legend = FALSE) +
+  geom_text(hjust = 1, nudge_y = 0.0009, size = 3) +
+  coord_flip() +
+  theme_hc() +
+  theme(plot.title = element_text(size = 12)) +
+  labs(x = NULL, y = expression(gamma),
+       title = "Top Eight Topics in Human Rights Texts",
+       subtitle = "Eight topics by prevalence with the top words that contribute to each topic",
+       caption = "Graphic: Isha Mahajan")+ 
+  theme_fivethirtyeight()
+
+```
+
+```{r}
+td_beta <- tidytext::tidy(model)
+td_beta %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+ ungroup() %>%
+    mutate(topic = paste0("Topic ", topic),
+         term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = as.factor(topic))) +
+  geom_col(alpha = 0.8, show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free_y") +
+  coord_flip() +
+  scale_x_reordered() +
+  labs(x = NULL, y = expression(beta),
+       title = "Highest word probabilities for each topic",
+       subtitle = "Words associated with each topic",
+       caption = "Graphic: Isha Mahajan")+
+       scale_color_manual(aesthetics = "Darjeeling2")+
+  theme_fivethirtyeight()
+```
+
+
+#Exploring Metadata
+
+```{r}
+metadata <- read_csv("dataverse_files_acled/reports_metadata.csv")
+```
+
+```{r}
+metadata_transformed <- metadata %>% 
+  group_by(organization, year.0) %>% 
+  summarise(count = n())
+```
+
+
+```{r}
+ggplot(metadata_transformed, aes(x = year.0, y = count, color = organization)) +
+  geom_line() +
+  labs(title = "Number of Reports Published Each Year by Organization",
+       x = "Year",
+       y = "Report Count",
+       legend = "Organization", 
+       caption = "Graphic: Isha Mahajan") +
+  theme_minimal() +
+theme(
+    title = element_text(face = "bold"),
+    legend.title = element_text(face = "bold"),
+    legend.box.background = element_rect(color = "black", linetype = "solid")
+  )
+```
+
+
+#Next Steps
