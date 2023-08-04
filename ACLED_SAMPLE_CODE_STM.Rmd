@@ -1,12 +1,13 @@
 ---
-title: "Acled Technical Assignment - Human Rights Analysis"
+title: "Acled Technical Assignment - Human Rights Text Analysis"
 output:
   pdf_document: default
   html_notebook: default
 ---
+
 ### Load Libraries 
 
-```{r}
+```{r results = 'hide'}
 library(knitr)
 library(tm)
 library(ggplot2)
@@ -44,7 +45,7 @@ articles <- text %>%
 
 This data was analyzed using Quanteda and tidyverse in R. After sampling the number of documents, I began pre-processing the data. I create tokens to reduce the text into smaller, more interpretable objects. Thereafter, I perform a series of common pre-processing practices that reduce noise, increase computational efficiency, and make topic models generate topics that are concise and coherent. Some of these pre-processing steps include removing punctuation, numbers, urls and stop words common in the English language. I also create compound tokens to indicate the combination of words being in unison such as -- "human rights" "u.s" etc. After performing a series of pre-processing texts, I create a document frequency matrix that describes frequency of terms in each document. 
 
-Given the limitations of processing-power, please note pre-processing is an iterative step and this would become clearer when the topics are generated in the end. Despite performing these pre-processing steps, the data often carries noise because of differing writing styles, context of the themes and topics being analyzed etc. To ideate on pre-processing further, I would like to discuss this further with any technical stakeholders and substantive experts who are well versed with literature in this field of research. 
+Given the limitations of processing-power, please note pre-processing is an iterative step and this would become clearer when the topics are generated in the end. Despite performing these pre-processing steps, the data often carries noise because of differing writing styles, context of the themes and topics being analyzed etc. To ideate on pre-processing, I would like to discuss this further with any technical stakeholders and substantive experts who are well versed with literature in this field of research. 
 
 
 ```{r}
