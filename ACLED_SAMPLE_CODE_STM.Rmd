@@ -279,9 +279,9 @@ Keeping this model at the core of building out a process, I would like to work w
 
 The key features of this tool would be:
 
-<li> Generating and Contextualizing topics from large volumes of text
-<li> Opportunity to select organizations who’s text the user is interested in exploring; the ability to see the     topical prevalence in those text
-<li> Forecast whether a future report/document by these organizations would be classified into a certain topic      or not. 
-<li> Forecast the time when a conflict would be reported and perhaps exploring the lag from time of conflict to time of reporting
+<li> 1. Generating and Contextualizing topics from large volumes of text
+<li> 2. Opportunity to select organizations who’s text the user is interested in exploring; the ability to see the topical prevalence in those text
+<li> 3. Forecast whether a future report/document by these organizations would be classified into a certain topic or not. 
+<li> 4. Forecast the time when a conflict would be reported and perhaps exploring the lag from time of conflict to time of reporting
 
 
