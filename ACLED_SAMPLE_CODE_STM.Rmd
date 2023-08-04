@@ -2,6 +2,7 @@
 title: "Acled Technical Assignment - Human Rights Analysis"
 output: html_notebook
 ---
+### Load Libraries 
 
 ```{r}
 library(knitr)
@@ -16,18 +17,34 @@ library(ggthemes)
 library(quanteda.textplots)
 ```
 
-#Read Data 
+### Read Data 
+
+Read data -- a folder which contains a txt file for each report labelled in the format reportname.txt.
+
+For this analysis I used a dataset from Christopher et.al published on the Harvard Dataverse. Here is the citation for the same.:
+
+**Christopher J. Fariss; Fridolin J. Linder; Zachary M. Jones; Charles D. Crabtree; Megan A. Biek; Ana-Sophia M. Ross; Taranamol Kaur; Michael Tsai, 2015, "Human Rights Texts: Converting Human Rights Primary Source Documents into Data", https://doi.org/10.7910/DVN/IAH8OY, Harvard Dataverse, V3**
+
 ```{r}
+#Read Data 
 text <- readtext("dataverse_files_acled/dataverse/*.txt")
 ```
 
-#Sampling 
+### Sampling 
+Due to computational limitations, I take a simple random sample of 1000 texts. 
 ```{r}
+#Sample
 articles <- text %>% 
   sample_n(1000)
 ```
 
-#PreProcessing 
+### Pre Processing 
+
+This data was analyzed using Quanteda and tidyverse in R. After sampling the number of documents, I began pre-processing the data. I create tokens to reduce the text into smaller, more interpretable objects. Thereafter, I perform a series of common pre-processing practices that reduce noise, increase computational efficiency, and make topic models generate topics that are concise and coherent. Some of these pre-processing steps include removing punctuation, numbers, urls and stop words common in the English language. I also create compound tokens to indicate the combination of words being in unison such as -- "human rights" "u.s" etc. After performing a series of pre-processing texts, I create a document frequency matrix that describes frequency of terms in each document. 
+
+Given the limitations of processing-power, please note pre-processing is an iterative step and this would become clearer when the topics are generated in the end. Despite performing these pre-processing steps, the data often carries noise because of differing writing styles, context of the themes and topics being analyzed etc. To ideate on pre-processing further, I would like to discuss this further with any technical stakeholders and substantive experts who are well versed with literature in this field of research. 
+
+
 ```{r}
 #select text column from articles
 tokens <- articles$text %>% 
@@ -55,7 +72,7 @@ tokens <- articles$text %>%
 dfm <- dfm_trim(dfm(tokens), min_docfreq = 0.30, max_docfreq = 0.90, min_termfreq = 75, docfreq_type = "prop", verbose = TRUE)
 
 #remove additional characters
-dfm <- dfm_remove(dfm,c("<",">", "however", "although", "$"))
+dfm <- dfm_remove(dfm,c("<",">", "however", "although", "$", "also"))
 ```
 
 ```{r}
@@ -67,7 +84,9 @@ textplot_wordcloud(dfm, max_words = 50, random_order = TRUE, color = "#0086b3")
 dfm_stm <- convert(dfm, to = "stm")
 ```
 
-#Modelling 
+### Modelling 
+
+To run a Structured Topic Model, I begin by running a search K function which enables me to test the optimal number of topics that can be generated from this text. These Ks are usually analyzed using evaluation metrics for goodness of fit like Coherence, Residuals, Lower Bound and Exclusivity. K = 7 seems to be an optimal fit for the model from an initial look at the evaluation metrics however, this is also something I would usually discuss with stakeholders or fellow technical members of the team. After running the model for K = 7, I plot the proportion of topical prevalence in the texts and the top 7 words that exist in each topic. Lastly, I also create a gamma matrix which gives me the probability of each document being associated with a topic. 
 
 ```{r}
 #Select the number of K to search optimal number of topics
@@ -135,14 +154,16 @@ print(topwords[1:7])
 
 
 ```{r}
-#probability of each document being asssociated with each topic (Sample head(10))
+#probability of each document being associated with each topic (Sample head(10))
 theta <- make.dt(model)
-theta[1:10,1:8]
+theta[1:50,1:8]
 ```
 
 
 
-### Visualization and Insights
+### Visualization and Insights (Part 2 of the Technical Assignment)
+
+In this section, I develop some exploratory graphs to see the topic prevalance in our sample. Fig 1.1 shows the proportion of topical prevalance in our sample, and I overlay the top 7 words the occur in each topic. Fig 1.2 goes a step further, and gives the proportion of the words occurring in each topic. These two graphs serve as an inital exploration point to observe keywords and see if there are thematic trends prevelant in the data. In addition, I also create a time-series which show the number of texts published by each organization in each year. Here n = 14190, which is the entirety of the dataset. 
 
 ```{r}
 #convert model into tidy tibble
@@ -151,7 +172,7 @@ head(model_beta)
 ```
 
 ```{r}
-#covert model into tibble gamma matrix -- probability of each document being assoicated with a topic
+#covert model into tibble gamma matrix -- probability of each document being associated with a topic
 model_gamma <- tidy(model, matrix = "gamma",
                  document_names = rownames(articles))
 model_gamma
@@ -176,7 +197,7 @@ gamma_terms <- model_gamma %>%
   mutate(topic = paste0("Topic ", topic),
          topic = reorder(topic, gamma))
 
-gamma_terms %>%
+figone_one <- gamma_terms %>%
   top_n(8, gamma) %>%
   ggplot(aes(topic, gamma, label = terms, fill = topic)) +
   geom_col(show.legend = FALSE) +
@@ -185,15 +206,18 @@ gamma_terms %>%
   theme_hc() +
   theme(plot.title = element_text(size = 12)) +
   labs(x = NULL, y = expression(gamma),
-       title = "Top Eight Topics in Human Rights Texts",
-       subtitle = "Eight topics by prevalence with the top words that contribute to each topic",
-       caption = "Graphic: Isha Mahajan")+ 
+       title = "Top Seven Topics in Human Rights Texts",
+       subtitle = "Seven topics by prevalence with the top words that contribute to each topic",
+       caption = "Graphic: Isha Mahajan \nFig 1.1")+ 
   theme_fivethirtyeight()
+print(figone_one)
 
+
+#ggsave(figone_one, "fig1.1.png", dpi = 400)
 ```
 
 ```{r}
-td_beta <- tidytext::tidy(model)
+figeone_two <- td_beta <- tidytext::tidy(model)
 td_beta %>%
   group_by(topic) %>%
   top_n(10, beta) %>%
@@ -208,14 +232,12 @@ td_beta %>%
   labs(x = NULL, y = expression(beta),
        title = "Highest word probabilities for each topic",
        subtitle = "Words associated with each topic",
-       caption = "Graphic: Isha Mahajan")+
+       caption = "Graphic: Isha Mahajan \n Fig 1.2")+
        scale_color_manual(aesthetics = "Darjeeling2")+
   theme_fivethirtyeight()
+print(figeone_two)
+#ggsave(figeone_two, "fig1.2.png", dpi = 400)
 ```
-
-
-#Exploring Metadata
-
 ```{r}
 metadata <- read_csv("dataverse_files_acled/reports_metadata.csv")
 ```
@@ -228,20 +250,35 @@ metadata_transformed <- metadata %>%
 
 
 ```{r}
-ggplot(metadata_transformed, aes(x = year.0, y = count, color = organization)) +
+figone_three <- ggplot(metadata_transformed, aes(x = year.0, y = count, color = organization)) +
   geom_line() +
   labs(title = "Number of Reports Published Each Year by Organization",
        x = "Year",
        y = "Report Count",
        legend = "Organization", 
-       caption = "Graphic: Isha Mahajan") +
+       caption = "Graphic: Isha Mahajan \n Fig 1.3") +
   theme_minimal() +
 theme(
     title = element_text(face = "bold"),
     legend.title = element_text(face = "bold"),
     legend.box.background = element_rect(color = "black", linetype = "solid")
   )
+print(figone_three)
+
+#ggsave(figone_three, "Fig1.3.png", dpi = 400)
 ```
+### Refelections (Part 3)
+
+This is an initial analysis and exploration to build a structural topic model and explore the potential of using Natural Language Processing in the field of Human Rights. By looking at a random sample of 1000 documents, this model, with a short run time, was able to generate topics and probabilities of a document belonging to a certain topic. This can work in parallel with human coders who have to go through volumes of texts and generate thematic codes to classify them into categories. If iterated upon, a model like this can serve as a good starting point to automate some of those processes, and serve useful to organizations like ACLED to diversify their data sources by analyzing large volumes of texts and generating insights for the broader research community in political violence and global affairs. 
+
+Keeping this model at the core of building out a process, I would like to work with this at scale depending on the computing power available. By using popular libraries in R/Python like Beautiful Soup or API calls, we could leverage large volumes of text to train a model and generate initial topical insights. Thereafter,the model can serve as a starting point to share topical prevalence of documents from websites like amnesty, human rights, landmine monitor etc. to provide the research community an opportunity to make their search processes more streamlined, enable coders to work in tandem with the model to increase it's accuracy, and eventually scale this into a predictive model where we can predict the time when the conflict would we reported, classify the organization by which a text was published etc. 
 
 
-#Next Steps
+The key features of this tool would be:
+
+<li> Generating and Contextualizing topics from large volumes of text
+<li> Opportunity to select organizations who’s text the user is interested in exploring; the ability to see the     topical prevalence in those text
+<li> Forecast whether a future report/document by these organizations would be classified into a certain topic      or not. 
+<li> Forecast the time when a conflict would be reported and perhaps exploring the lag from time of conflict to time of reporting
+
+
