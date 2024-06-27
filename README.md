@@ -1,6 +1,4 @@
 # stm_human_rights
-Acled Technical Assignment 
-
 
 This study conducts a topical analysis of coverage on human rights from around the globe. The original corpus itself includes raw text of over 14,000 human rights country reports published from four sources:Amnesty International (1974–2012), Human Rights Watch (1989–2014), the Lawyers Committee for Human Rights (1982–1996), and the United States Department of State (1977–2013). I reduce the corpus by taking a random sample of 1000 articles. 
 
